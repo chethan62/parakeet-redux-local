@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """GPU/CUDA reality check for the Parakeet models under Photon.
 
   .venv-cuda/bin/python gpu_test.py                        # redux on cuda

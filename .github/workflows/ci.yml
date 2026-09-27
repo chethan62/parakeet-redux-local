@@ -1,0 +1,37 @@
+name: ci
+
+# No untrusted input (issue/PR titles or bodies, commit messages, refs) is interpolated into the run:
+# blocks below - the only inputs are the checked-out tree and pinned tool versions.
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: system deps
+        run: sudo apt-get update && sudo apt-get install -y --no-install-recommends ffmpeg
+
+      - name: uv
+        run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: install moondream (CPU-only torch)
+        run: |
+          uv venv -p 3.12 .venv
+          uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
+          # PyPI's default torch wheel is the CUDA build + ~3.2 GB of nvidia-* wheels; this repo is CPU-first.
+          uv pip install --python .venv/bin/python --torch-backend cpu --reinstall-package torch torch
+
+      - name: which kernel path did we get
+        run: .venv/bin/python transcribe.py --list-devices
+
+      - name: gate (baseline transcript, word timings, long-clip reps, speed floor)
+        run: .venv/bin/python check.py
+
+      - name: venv size
+        run: du -sh .venv

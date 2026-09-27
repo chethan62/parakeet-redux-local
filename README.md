@@ -1,5 +1,10 @@
 # Parakeet Redux on a CPU without AVX-512 — what the 113× headline actually means
 
+[![ci](https://github.com/chethan62/parakeet-redux-local/actions/workflows/ci.yml/badge.svg)](https://github.com/chethan62/parakeet-redux-local/actions/workflows/ci.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+[![python 3.12](https://img.shields.io/badge/python-3.12-blue.svg)](#requirements)
+[![model: CC-BY-4.0](https://img.shields.io/badge/weights-CC--BY--4.0-blue.svg)](https://huggingface.co/moondream/parakeet-redux)
+
 Independent measurements of [Moondream Parakeet Redux](https://huggingface.co/moondream/parakeet-redux)
 (`moondream/parakeet-redux`, a 1.58-bit ternary re-export of
 [NVIDIA parakeet-tdt-0.6b-v3](https://huggingface.co/nvidia/parakeet-tdt-0.6b-v3)) run through
@@ -7,8 +12,16 @@ Moondream's Photon runtime on this machine:
 
 - **CPU**: Intel i5-10300H (Comet Lake, 8 threads, **AVX2 only — no AVX-512, no AVX-VNNI**), 4 GB GTX 1650
   (clock-capped at 300 MHz by the EC/BIOS), CachyOS, Python 3.12, `moondream 2.5.0`
-- fixtures: 10.4 s / 125.2 s real speech (`Narsil/asr_dummy`) plus a KittentTS-synthesised sentence with a
-  known transcript, so word-error-rate is checkable without a dataset.
+- fixtures: 10.4 s of real speech (`Narsil/asr_dummy`, public) looped into a 125 s clip; a KittentTS-synthesised
+  sentence with a known transcript was used during development, and `check.py` now fetches its own fixture.
+
+## Requirements
+
+- Python 3.12 (3.10+ works; the venv recipe below uses 3.12)
+- `ffmpeg` on PATH — used to normalise any input to 16 kHz mono
+- an engine-supported device: x86 CPU with **AVX2** at minimum (AVX-512 VNNI or AVX-VNNI for the fast path),
+  aarch64 CPU (NEON), Apple silicon (`mps`), or CUDA
+- ~1.6 GB disk for the venv, 178 MB for the weights, plus ~250 KB of fixtures the gate downloads
 
 ## Devices
 
@@ -130,16 +143,24 @@ uv pip uninstall --python .venv/bin/python nvidia-cublas nvidia-cudnn-cu13 nvidi
 | file | what it does |
 | --- | --- |
 | `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--device auto\|cpu\|cuda\|mps`, `--timestamps segment\|word`, `--rtf`, `--list-devices` |
-| `check.py` | regression gate: exact transcript vs synthesised ground truth, one timing per word, monotonic timings, RTF > 2 on the 125 s clip |
+| `check.py` | portable regression gate — fetches its own fixture, checks the recorded baseline transcript, one timing per word, monotonic timings, 12/12 repetitions on the long clip, device-aware speed floor |
+| `.github/workflows/ci.yml` | the same gate on a clean `ubuntu-latest` box with CPU-only torch |
 | `bench.sh` | sequential CPU A/B against whisper.cpp on the same clip |
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
 
 ```sh
-cp <your audio> models/          # or point the scripts anywhere
+uv venv -p 3.12 .venv
+uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
+uv pip install --python .venv/bin/python --torch-backend cpu --reinstall-package torch torch   # CPU-only torch
+
 .venv/bin/python transcribe.py meeting.m4a --timestamps segment
-.venv/bin/python check.py        # needs models/{tts_truth.mp3,long.wav}; see bench.sh for the fixture recipe
+.venv/bin/python transcribe.py --list-devices
+.venv/bin/python check.py     # self-fetching gate: baseline transcript, word timings, 12 reps, speed floor
 ```
+
+CI runs exactly that on a clean `ubuntu-latest` box (with the CPU-only torch step), so the install recipe in
+this README is verified on every push rather than described.
 
 ## Licensing and attribution
 
@@ -162,4 +183,7 @@ from that package.
 Nothing here is vendored: models and wheels are downloaded at install time, so there is no NOTICE/third-party
 file to ship.
 
-The scripts in this repository are MIT (see `LICENSE`).
+The scripts in this repository are MIT — see [`LICENSE`](LICENSE), and `SPDX-License-Identifier: MIT` at the
+top of each file. That licence covers this repository's own code only: it does not relicense the model
+weights, the runtime or the kernels listed above, and nothing third-party (code, weights or audio) is
+redistributed here — models and fixtures are downloaded at install time.

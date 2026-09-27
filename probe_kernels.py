@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """What ternary kernel path is live on this CPU, and does anything make it faster."""
 import time
 from pathlib import Path

@@ -1,4 +1,5 @@
 #!/usr/bin/env python3
+# SPDX-License-Identifier: MIT
 """Parakeet Redux (Moondream/Photon) transcription — picks the device, not the marketing.
 
   .venv/bin/python transcribe.py --list-devices
