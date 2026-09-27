@@ -1,0 +1,5 @@
+.venv/
+.venv-cuda/
+models/
+__pycache__/
+*.txt
