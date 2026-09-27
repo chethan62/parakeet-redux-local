@@ -2,4 +2,5 @@
 .venv-cuda/
 models/
 __pycache__/
-*.txt
+*_warn.txt        # stderr captures from probing kernel paths
+/upstream-issue.md  # draft issue for another repo; posting it is the owner's call

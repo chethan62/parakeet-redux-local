@@ -49,7 +49,7 @@ $ .venv/bin/python transcribe.py meeting.m4a --device cuda --rtf
 
 A device this build cannot reach fails loudly instead of silently running on the CPU: `--device mps` on
 Linux exits with the missing-support error, and `--device cuda` under a CPU-only PyTorch tells you to
-install a CUDA build. `cuda:N` device indices pass through.
+install a CUDA build.
 
 ## Results
 
@@ -63,9 +63,11 @@ One utterance at a time, same audio, same machine:
 | Parakeet Ultra, CUDA (GTX 1650) | 2.10× | 2.70× | 1.7–2.0 GB VRAM |
 
 So on this laptop: **Redux is ~1.6× faster than CPU whisper.cpp-small and ~2–2.4× faster than the same
-model on the GPU.** The published "113× real time on eight x86 CPU cores" is measured on an AMD EPYC 9575F
-(Zen 5, AVX-512 VNNI) — a machine with the 512-bit int8 dot-product instructions this Comet Lake part does
-not have. Quoting that number for a consumer laptop is off by ~19×.
+model on the GPU.** Run-to-run spread on this box is ~15 % (a second pass measured 2.8× for whisper.cpp and
+4.8× for Redux on the same clip), so read the ratios, not the last digit. The published "113× real time on
+eight x86 CPU cores" is measured on an AMD EPYC 9575F (Zen 5, AVX-512 VNNI) — a machine with the 512-bit
+int8 dot-product instructions this Comet Lake part does not have. Quoting that number for a consumer laptop
+is off by ~19×.
 
 ## Why: the kernel path is hardware-gated, not a setting
 

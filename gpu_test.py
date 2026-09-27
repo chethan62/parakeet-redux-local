@@ -2,6 +2,9 @@
 # SPDX-License-Identifier: MIT
 """GPU/CUDA reality check for the Parakeet models under Photon.
 
+Needs a venv whose torch is the CUDA build - create a throwaway one (see the README's install recipe
+without --torch-backend cpu) and run it there:
+
   .venv-cuda/bin/python gpu_test.py                        # redux on cuda
   .venv-cuda/bin/python gpu_test.py moondream/parakeet-ultra
 """
