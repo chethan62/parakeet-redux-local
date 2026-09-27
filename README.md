@@ -146,6 +146,13 @@ docs; where nothing exists, it says so instead of filling the gap.
   on multilingual / behind on English. The same page shows Redux **slower** than v3 on the Neural Engine
   (83.9× vs 128.6× RTFx), so "compressed is faster" does not hold on that engine — and the Apple path here is
   untested for the opposite reason (no Mac to test on).
+- **Two unrelated runtimes agree on this box.** whisper.cpp 1.9.2's `parakeet-cli` (already installed here, ggml
+  + Vulkan) loads `ggml-org/parakeet-GGUF` q8_0 — 669 MB, 668,757,119 B, exactly the size the card advertises —
+  and returns the same sentence as Photon on the 10.4 s fixture: different engine, different quantisation
+  (ternary int8 vs q8_0), same words. Note the dialects are not interchangeable: a CrispASR-dialect GGUF of
+  the same model is rejected with `failed to load Parakeet model`. CPU-vs-Vulkan timing for this pair is still
+  pending a quiet machine (`bench_ggml.sh` measures it, and refuses to time a busy box — a contended run
+  already produced one bogus halved number here).
 - **The 113× has no third-party replication.** It is vendor-only, on an EPYC 9575F. The one outward test
   quoted in the launch post is a single X user on a Ryzen 9 9950X3D, and the vendor's own reply to it
   admits they never ran that test.
