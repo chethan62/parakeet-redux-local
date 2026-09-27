@@ -23,9 +23,11 @@ jobs:
       - name: install moondream (CPU-only torch)
         run: |
           uv venv -p 3.12 .venv
-          uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
-          # PyPI's default torch wheel is the CUDA build + ~3.2 GB of nvidia-* wheels; this repo is CPU-first.
-          uv pip install --python .venv/bin/python --torch-backend cpu --reinstall-package torch torch
+          # --torch-backend cpu from the start: PyPI's default torch wheel is the CUDA build plus ~3.2 GB
+          # of nvidia-* wheels, which a CPU-first repo should not carry (plain pip install moondream does).
+          uv pip install --python .venv/bin/python --torch-backend cpu "moondream>=2.4.1" numpy
+          .venv/bin/python -c "import torch; assert torch.version.cuda is None, torch.version.cuda; print('torch', torch.__version__)"
+          if uv pip list --python .venv/bin/python | grep -q '^nvidia'; then echo "nvidia-* wheels present"; exit 1; fi
 
       - name: which kernel path did we get
         run: .venv/bin/python transcribe.py --list-devices

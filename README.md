@@ -124,19 +124,25 @@ Redux on the CPU), so GPU means the same text, half the speed and ~2 GB of VRAM.
 ## Install gotcha: a 178 MB model in a 6 GB virtualenv
 
 `pip install moondream` pulls `kestrel` → `torch` from PyPI, which is the CUDA build plus ~3.2 GB of
-`nvidia-*` wheels. For CPU-only use:
+`nvidia-*` wheels. Ask uv for the CPU wheel at install time and none of it is fetched:
 
 ```sh
 uv venv -p 3.12 .venv
-uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
+uv pip install --python .venv/bin/python --torch-backend cpu "moondream>=2.4.1" numpy
+```
+
+Verified: torch `2.14.0+cpu`, **0 `nvidia-*` packages**, venv **1.6 GB** against 6.0 GB — CI re-checks all
+three on every push. Already have the CUDA build in a venv? Reinstall the wheel and drop the dead ones:
+
+```sh
 uv pip install --python .venv/bin/python --torch-backend cpu --reinstall-package torch torch
 uv pip uninstall --python .venv/bin/python nvidia-cublas nvidia-cudnn-cu13 nvidia-cufft nvidia-curand \
   nvidia-cusolver nvidia-cusparse nvidia-nccl-cu13 nvidia-nvjitlink nvidia-cuda-runtime nvidia-cuda-cupti \
   nvidia-cuda-nvrtc nvidia-cufile nvidia-cusparselt-cu13 nvidia-nvshmem-cu13 nvidia-cuda-nvcc triton
 ```
 
-6.0 GB → **1.6 GB**, verified still transcribing. `device="cuda"` then fails loudly
-("Photon needs PyTorch built with CUDA support") instead of silently falling back to the CPU.
+`device="cuda"` then fails loudly ("Photon needs PyTorch built with CUDA support") instead of silently
+falling back to the CPU.
 
 ## Files
 
@@ -151,8 +157,8 @@ uv pip uninstall --python .venv/bin/python nvidia-cublas nvidia-cudnn-cu13 nvidi
 
 ```sh
 uv venv -p 3.12 .venv
-uv pip install --python .venv/bin/python "moondream>=2.4.1" numpy
-uv pip install --python .venv/bin/python --torch-backend cpu --reinstall-package torch torch   # CPU-only torch
+# --torch-backend cpu from the start: a bare `pip install moondream` pulls the CUDA torch + ~3.2 GB of nvidia-* wheels
+uv pip install --python .venv/bin/python --torch-backend cpu "moondream>=2.4.1" numpy
 
 .venv/bin/python transcribe.py meeting.m4a --timestamps segment
 .venv/bin/python transcribe.py --list-devices
