@@ -162,6 +162,7 @@ falling back to the CPU.
 | `bench.sh` | sequential CPU A/B against whisper.cpp on the same clip |
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
+| `upstream-issue.md` | drafted (not posted) issue for the walkthrough repo this started from: its app omits `device=`, so any NVIDIA machine silently takes the slower CUDA path |
 
 ```sh
 uv venv -p 3.12 .venv
