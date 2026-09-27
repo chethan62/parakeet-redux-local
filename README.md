@@ -62,11 +62,21 @@ right below, that qualifier is not decoration.
 | ggml `parakeet-cli` q8_0, Vulkan (GTX 1650) | — | 5.24× (23.94 s) | whisper.cpp's own Parakeet example, already installed here |
 | whisper.cpp `ggml-small.en -t 8`, CPU | — | 4.64× (26.97 s) | the reference everyone means by "Whisper on CPU" |
 | ggml `parakeet-cli` q8_0, CPU (`-ng`) | — | 4.46× (28.13 s) | same model, plain ggml int8 path |
+| ggml `parakeet-cli` **q4_k** 415 MB, CPU | — | 6.21× (20.17 s) | same binary, smaller weights |
+| ggml `parakeet-cli` **q4_0** 355 MB, CPU | — | 6.30× (19.88 s) | the smallest ggml quant of this model |
 | Parakeet Redux, CUDA (GTX 1650) | 1.95× | 2.48× | **provisional** — timed on a hot box; 1.7–2.1 GB VRAM |
 | Parakeet Ultra, CUDA (GTX 1650) | 2.10× | 2.70× | **provisional**, same reason |
 
+The three ggml quants are the experiment that separates **weight size** from **kernel quality**: dropping the
+same model from 669 MB (q8_0) to 355 MB (q4_0) — halving it — buys 4.87× → 6.30×, **+29 %**. Size is worth
+something, and nowhere near the gap: Redux at 178 MB runs **13.98×**, 2.2× the fastest ggml quant, and the trend
+across 355/415/669 MB explains at most 1.3× of that. So the lead is the packed ternary GEMM, not a smaller file —
+which is also why "just run the open runtime with small weights" does not reach it on this CPU. (All six runs
+within one quiet window: load 1.93, 52 °C at the start, 75 °C at the end, so the whole spread sits inside a
+single thermal drift; the ordering did not favour Redux, which ran first.)
+
 So on this laptop, comparing transcribe time only: **Redux is ~3× faster than CPU whisper.cpp-small**
-(8.96 s vs 26.97 s on the same 125 s clip) and **~2.7–3× faster than the best ggml Parakeet path** on this
+(8.96 s vs 26.97 s on the same 125 s clip) and **~2.2–3× faster than the best ggml Parakeet path** on this
 box, and it beats its own CUDA path by a wide margin — on GPU the model runs the dense form with four PyTorch
 fallback kernels, where the ggml Vulkan build is at least self-consistent. Wall-to-wall including the
 one-time model load the ratio is **1.6×** (16.84 s vs 27.15 s), which is the number to use for a single short
@@ -222,6 +232,8 @@ falling back to the CPU.
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
 | `bench_ggml.sh` | cross-checks: the ggml `parakeet-cli` (already on this box) on ggml-org's GGUF, CPU vs Vulkan, plus the CUDA-hidden A/B — waits for a quiet machine before timing |
+| `bench_quants.sh` | the size-vs-kernel experiment: the same ggml model at q8_0/q4_k/q4_0 on the same clip through the same binary (answer: halving the file buys 29 %, so the 2.2× gap is the kernel) |
+| `bench_sherpa.py` | reproduces a production sherpa-onnx int8 configuration on the same clip (7.46× chunked), for a like-for-like comparison against a real pipeline rather than a vendor chart |
 | `upstream-issue.md` | drafted (not posted) issue for the walkthrough repo this started from: its app omits `device=`, so any NVIDIA machine silently takes the slower CUDA path |
 
 ```sh
