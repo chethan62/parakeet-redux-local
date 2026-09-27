@@ -123,8 +123,10 @@ Redux on the CPU), so GPU means the same text, half the speed and ~2 GB of VRAM.
   against the clean transcript): clean 0.0 %, 10 dB 0.0 %, 5 dB 7.1 %, 0 dB 10.7 % — and every error is a
   similar-sounding-word substitution (`turnips`→`turnets`, `bruised`→`brewed`, `fattened`→`satin`), with no
   dropped or invented content. Different fixture and method from the card's numbers, so read them as a
-  direction, not a comparison. Adopt for meetings, podcasts, voice notes; expect this when a film has music
-  and effects over dialogue.
+  direction, not a comparison. CI measures 10.7 % at both 5 dB and 0 dB against 7.1 %/10.7 % locally: the
+  gap is one substituted word (`fattened`→`flattened`) and traces to the ffmpeg build that decodes the
+  fixture, not to the model — which is why the gate asserts a 25 % ceiling rather than an exact figure.
+  Adopt for meetings, podcasts, voice notes; expect this when a film has music and effects over dialogue.
 - Redux is ahead of the original on the 25-language FLEURS average (10.56 vs 11.62) and on long-form
   TED-LIUM (2.51 vs 2.71), and behind it on the seven English sets (6.55 vs 6.26).
 
