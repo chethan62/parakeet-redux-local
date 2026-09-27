@@ -21,6 +21,11 @@ import sherpa_onnx
 
 ROOT = os.path.expanduser("~/.local/share/sherpa-onnx/models")
 CLIP = os.path.expanduser("~/projects/parakeet-redux/models/long.wav")
+# Optional first argument: any 16 kHz mono wav, so this can time the SAME file a
+# different engine was measured on (the 125 s fixture is synthetic read speech
+# repeated 12x and flatters every engine; real film audio is the honest clip).
+if len(sys.argv) > 1:
+    CLIP = sys.argv[1]
 SR = 16000
 CHUNK, OVERLAP = 30.0, 2.0
 FILES = ("encoder.int8.onnx", "decoder.int8.onnx", "joiner.int8.onnx", "tokens.txt")

@@ -233,7 +233,7 @@ falling back to the CPU.
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
 | `bench_ggml.sh` | cross-checks: the ggml `parakeet-cli` (already on this box) on ggml-org's GGUF, CPU vs Vulkan, plus the CUDA-hidden A/B — waits for a quiet machine before timing |
 | `bench_quants.sh` | the size-vs-kernel experiment: the same ggml model at q8_0/q4_k/q4_0 on the same clip through the same binary (answer: halving the file buys 29 %, so the 2.2× gap is the kernel) |
-| `bench_sherpa.py` | reproduces a production sherpa-onnx int8 configuration on the same clip (7.46× chunked), for a like-for-like comparison against a real pipeline rather than a vendor chart |
+| `bench_sherpa.py` | reproduces a production sherpa-onnx int8 configuration, on the 125 s fixture (7.46× chunked) **and on a real 183.6 s film excerpt (7.45×)** — takes any 16 kHz mono wav as its first argument |
 | `upstream-issue.md` | drafted (not posted) issue for the walkthrough repo this started from: its app omits `device=`, so any NVIDIA machine silently takes the slower CUDA path |
 
 ```sh
