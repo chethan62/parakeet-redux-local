@@ -130,6 +130,37 @@ Redux on the CPU), so GPU means the same text, half the speed and ~2 GB of VRAM.
 - Redux is ahead of the original on the 25-language FLEURS average (10.56 vs 11.62) and on long-form
   TED-LIUM (2.51 vs 2.71), and behind it on the seven English sets (6.55 vs 6.26).
 
+## What independent sources do and do not establish
+
+Separate from everything Moondream reports about itself. Every link is a third party or the vendor's own
+docs; where nothing exists, it says so instead of filling the gap.
+
+- **The weights are real and portable.** Independent GGUF ports unpack the ternary codes exactly
+  (`w = scale·(code−1)`) and reproduce Photon's transcripts: [cstr's GGUF](https://huggingface.co/cstr/parakeet-redux-GGUF),
+  and a [transcribe.cpp conversion](https://huggingface.co/Nairod785/parakeet-ultra-gguf) reporting encoder
+  max |Δ| 3.0e-4 against transformers. Those ports drop the 6 `vad_head.*` tensors, so the built-in VAD
+  segmentation is Photon-only.
+- **The 178 MB and the direction of the accuracy table are corroborated**, on Apple, by Fluid Inference's
+  Core ML builds ([redux](https://huggingface.co/FluidInference/parakeet-redux-coreml),
+  [ultra](https://huggingface.co/FluidInference/parakeet-ultra-coreml)): 183 MB encoder, and Redux ahead of v3
+  on multilingual / behind on English. The same page shows Redux **slower** than v3 on the Neural Engine
+  (83.9× vs 128.6× RTFx), so "compressed is faster" does not hold on that engine — and the Apple path here is
+  untested for the opposite reason (no Mac to test on).
+- **The 113× has no third-party replication.** It is vendor-only, on an EPYC 9575F. The one outward test
+  quoted in the launch post is a single X user on a Ryzen 9 9950X3D, and the vendor's own reply to it
+  admits they never ran that test.
+- **Nobody documents a CPU instruction-set requirement**, yet CPUs without the int8 path crash instead of
+  falling back (`Illegal instruction (core dumped)` on a Jetson Nano in the vendor's tracker; a third-party
+  runtime states the AVX2 floor for its own build). On this box AVX2 is the ceiling — `probe_kernels.py`.
+- **The vendor's support matrix lists no Parakeet CPU row and no Redux/Ultra row at all** — support is
+  stated for Parakeet v3 BF16 on NVIDIA, and Photon's docs floor GPUs at Ampere. This repo's CUDA numbers
+  come from a Turing GTX 1650, outside that matrix, and it works.
+- **On a CUDA-visible machine, asking for the CPU costs ~14 %** (vendor tracker
+  [kestrel #259](https://github.com/m87-labs/kestrel/issues/259)): the fused CPU conformer kernels are only
+  selected when CUDA is invisible to the process; the stated workaround is `CUDA_VISIBLE_DEVICES=`. Not
+  reproduced here — the attempt timed on a contended box, so it stays a reported figure (`bench_ggml.sh`
+  re-tries it and refuses to time anything while the machine is busy).
+
 ## Install gotcha: a 178 MB model in a 6 GB virtualenv
 
 `pip install moondream` pulls `kestrel` → `torch` from PyPI, which is the CUDA build plus ~3.2 GB of
@@ -164,6 +195,7 @@ falling back to the CPU.
 | `bench.sh` | sequential CPU A/B against whisper.cpp on the same clip |
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
+| `bench_ggml.sh` | cross-checks: the ggml `parakeet-cli` (already on this box) on ggml-org's GGUF, CPU vs Vulkan, plus the CUDA-hidden A/B — waits for a quiet machine before timing |
 | `upstream-issue.md` | drafted (not posted) issue for the walkthrough repo this started from: its app omits `device=`, so any NVIDIA machine silently takes the slower CUDA path |
 
 ```sh
