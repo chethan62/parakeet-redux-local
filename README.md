@@ -43,8 +43,8 @@ $ .venv/bin/python transcribe.py meeting.m4a --device cuda --rtf
 
 | device | native ternary kernel | measured here | notes |
 | --- | --- | --- | --- |
-| `cpu` | yes (int8) | 5.2–6.0× | the default; needs AVX2 at minimum, AVX-512 VNNI is the 113×-class path |
-| `cuda` | no — dense form | 1.95–2.70× | 1.7–2.1 GB VRAM; four conformer kernels fall back to PyTorch |
+| `cpu` | yes (int8) | **12.6–14.9×** | the default; needs AVX2 at minimum, AVX-512 VNNI is the 113×-class path |
+| `cuda` | no — dense form | 1.95–2.70× (provisional) | 1.7–2.1 GB VRAM; four conformer kernels fall back to PyTorch; timed on a hot box, see Results |
 | `mps` | yes (Metal) | not measured | **no Apple hardware here, so untested** — the engine reports the Metal path as the supported one; run `--list-devices` on the Mac to confirm `native_kernel=True` |
 
 A device this build cannot reach fails loudly instead of silently running on the CPU: `--device mps` on
@@ -53,21 +53,35 @@ install a CUDA build.
 
 ## Results
 
-One utterance at a time, same audio, same machine:
+One utterance at a time, same audio, same machine, **measured cold and quiet** — see the correction notice
+right below, that qualifier is not decoration.
 
 | engine / device | 10 s clip | 125 s clip | notes |
 | --- | --- | --- | --- |
-| **Parakeet Redux, CPU** | **5.24× realtime** | **5.63–6.03×** | +12 s one-time model load |
-| whisper.cpp `ggml-small.en -t 8`, CPU | — | 3.22× realtime | 38.9 s wall, 13.5 s user → not CPU-bound |
-| Parakeet Redux, CUDA (GTX 1650) | 1.95× | 2.48× | 1.7–2.1 GB VRAM |
-| Parakeet Ultra, CUDA (GTX 1650) | 2.10× | 2.70× | 1.7–2.0 GB VRAM |
+| **Parakeet Redux, CPU** | **14.90×** | **13.98×** | +4.3–5.1 s one-time model load; 12.71–13.69× across three gate runs |
+| ggml `parakeet-cli` q8_0, Vulkan (GTX 1650) | — | 5.24× (23.94 s) | whisper.cpp's own Parakeet example, already installed here |
+| whisper.cpp `ggml-small.en -t 8`, CPU | — | 4.64× (26.97 s) | the reference everyone means by "Whisper on CPU" |
+| ggml `parakeet-cli` q8_0, CPU (`-ng`) | — | 4.46× (28.13 s) | same model, plain ggml int8 path |
+| Parakeet Redux, CUDA (GTX 1650) | 1.95× | 2.48× | **provisional** — timed on a hot box; 1.7–2.1 GB VRAM |
+| Parakeet Ultra, CUDA (GTX 1650) | 2.10× | 2.70× | **provisional**, same reason |
 
-So on this laptop: **Redux is ~1.6× faster than CPU whisper.cpp-small and ~2–2.4× faster than the same
-model on the GPU.** Run-to-run spread on this box is ~15 % (a second pass measured 2.8× for whisper.cpp and
-4.8× for Redux on the same clip), so read the ratios, not the last digit. The published "113× real time on
-eight x86 CPU cores" is measured on an AMD EPYC 9575F (Zen 5, AVX-512 VNNI) — a machine with the 512-bit
-int8 dot-product instructions this Comet Lake part does not have. Quoting that number for a consumer laptop
-is off by ~19×.
+So on this laptop, comparing transcribe time only: **Redux is ~3× faster than CPU whisper.cpp-small**
+(8.96 s vs 26.97 s on the same 125 s clip) and **~2.7–3× faster than the best ggml Parakeet path** on this
+box, and it beats its own CUDA path by a wide margin — on GPU the model runs the dense form with four PyTorch
+fallback kernels, where the ggml Vulkan build is at least self-consistent. Wall-to-wall including the
+one-time model load the ratio is **1.6×** (16.84 s vs 27.15 s), which is the number to use for a single short
+file and the wrong one to use for a batch. The published "113× real time on eight x86 CPU cores" is measured
+on an AMD EPYC 9575F (Zen 5, AVX-512 VNNI) — this Comet Lake part has neither the 512-bit nor the 256-bit
+int8 dot-product instruction, so quoting 113× for a consumer laptop is off by ~8×.
+
+> **Correction — every earlier local number in this repo's history was void.** The figures that used to be
+> here (5.24× on the 10 s clip, 5.63–6.03× on the 125 s clip, and the CUDA row) were taken on a box that had
+> climbed to **94 °C** with concurrent load; this i5-10300H power-caps hard under sustained heat. The same
+> regression gate reads **5.9× hot and 13.7× cool**, which is a 2.3× measurement error. Everything above was
+> re-measured with `loadavg < 2` and the package at **55–58 °C**, and `bench_ggml.sh` now refuses to time a
+> busy machine at all. If you re-run this, check `cut -d' ' -f1 /proc/loadavg` and the package temperature
+> **before** believing any ratio. The one number that was never affected is CI's: a 4-core `ubuntu-latest`
+> runner, which has no reason to be hot, has read a consistent **10.3–10.6×** throughout.
 
 ## Why: the kernel path is hardware-gated, not a setting
 
@@ -81,14 +95,15 @@ ternary_gemm_isa   : avx2      # the live path on this CPU (auto-selected)
 resident_form(cpu) : gemm8     # weights stay in the packed int8 execution form
 metal_gemm_ready   : False
 
-isa=auto  → avx2    1.99 s on the 10 s clip   5.24×   # same transcript
-isa=scalar (forced) 10.45 s                   1.00×
-125 s clip, worker threads default / 4 / 8:  5.63× / 5.69× / 5.92×   # i.e. noise
+125 s clip, worker threads default / 4 / 8:   11.49× / 13.31× / 13.10×
+isa=avx2 (forced — it is already the selection): 12.58×
 ```
 
-`set_gemm_isa()` cannot conjure a path the silicon lacks — AVX2 *is* this CPU's fast path, and it is already
-5× the scalar reference. Thread and tile knobs are worth ~5%. Check your own CPU before believing any speed
-number: `grep -o avx512_vnni /proc/cpuinfo` (or `avx_vnni` for the 256-bit variant) must be non-empty.
+The first timing after a model load reads ~15 % slow (`11.49×` above, then three settings in a row at
+13.1–13.3×), so that is warm-up, not a thread effect — one run per setting cannot distinguish thread counts
+on this box. `set_gemm_isa()` cannot conjure a path the silicon lacks: AVX2 *is* this CPU's fast path and
+forcing it changes nothing, because it is already the selection. Check your own CPU before believing any
+speed number: `grep -o avx512_vnni /proc/cpuinfo` (or `avx_vnni` for the 256-bit variant) must be non-empty.
 
 ## On CUDA the ternary kernel is not used at all
 
@@ -112,6 +127,10 @@ check for which path you actually got:
 
 Accuracy is unchanged by device (Parakeet Ultra on CUDA reproduced the synthesised sentence exactly, as did
 Redux on the CPU), so GPU means the same text, half the speed and ~2 GB of VRAM. Keep these models on the CPU.
+**Provisional magnitudes:** the CUDA table above was timed while an unrelated transcribe job held this box
+at ~430 % CPU and 94 °C; the CPU side of the same comparison has since re-measured **2× faster** on a quiet
+machine (12.6–13.7×, see Results), so read these as directions, not rates. The direction is structural
+regardless — no ternary CUDA kernel exists — and is corroborated by the vendor's own engine notes.
 
 ## Accuracy notes
 
