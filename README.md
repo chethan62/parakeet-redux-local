@@ -10,6 +10,34 @@ Moondream's Photon runtime on this machine:
 - fixtures: 10.4 s / 125.2 s real speech (`Narsil/asr_dummy`) plus a KittentTS-synthesised sentence with a
   known transcript, so word-error-rate is checkable without a dataset.
 
+## Devices
+
+`--device auto` (the default) picks whichever device actually has a **native ternary kernel** — Apple
+Metal on `mps`, int8 AVX2 / AVX-VNNI / AVX-512-VNNI on `cpu`, NEON on aarch64 `cpu` — and only falls back to
+CUDA when the machine has no native path at all. CUDA is never "native" for these models, so it is chosen
+only if you ask for it. See for yourself:
+
+```sh
+$ .venv/bin/python transcribe.py --list-devices
+  mps  not present  native_kernel=False
+  cpu  available    native_kernel=True
+  cuda not present  native_kernel=False
+  -> auto picks: cpu
+$ .venv/bin/python transcribe.py meeting.m4a --device cuda --rtf
+# device=cuda (requested cuda) resident_form=dense
+# note: CUDA runs this model dense (no ternary kernel) and falls back to PyTorch for four conformer kernels - a CPU with a native int8 path is usually faster
+```
+
+| device | native ternary kernel | measured here | notes |
+| --- | --- | --- | --- |
+| `cpu` | yes (int8) | 5.2–6.0× | the default; needs AVX2 at minimum, AVX-512 VNNI is the 113×-class path |
+| `cuda` | no — dense form | 1.95–2.70× | 1.7–2.1 GB VRAM; four conformer kernels fall back to PyTorch |
+| `mps` | yes (Metal) | not measured | **no Apple hardware here, so untested** — the engine reports the Metal path as the supported one; run `--list-devices` on the Mac to confirm `native_kernel=True` |
+
+A device this build cannot reach fails loudly instead of silently running on the CPU: `--device mps` on
+Linux exits with the missing-support error, and `--device cuda` under a CPU-only PyTorch tells you to
+install a CUDA build. `cuda:N` device indices pass through.
+
 ## Results
 
 One utterance at a time, same audio, same machine:
@@ -101,7 +129,7 @@ uv pip uninstall --python .venv/bin/python nvidia-cublas nvidia-cudnn-cu13 nvidi
 
 | file | what it does |
 | --- | --- |
-| `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--timestamps segment|word`, `--rtf` |
+| `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--device auto\|cpu\|cuda\|mps`, `--timestamps segment\|word`, `--rtf`, `--list-devices` |
 | `check.py` | regression gate: exact transcript vs synthesised ground truth, one timing per word, monotonic timings, RTF > 2 on the 125 s clip |
 | `bench.sh` | sequential CPU A/B against whisper.cpp on the same clip |
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |

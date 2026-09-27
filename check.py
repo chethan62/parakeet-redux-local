@@ -3,14 +3,16 @@
 import re, time, sys
 from pathlib import Path
 import moondream as md
-from transcribe import MODEL, transcribe, duration
+from transcribe import MODEL, device_facts, resolve_device, transcribe, duration
 
 M = Path(__file__).parent / "models"
 TRUTH = "The quick brown fox jumps over the lazy dog. Subtitle synchronization depends on accurate word timestamps. Ship the smallest change that actually fixes the reported problem."
 
 norm = lambda s: re.sub(r"[^a-z0-9 ]", "", s.lower()).split()
 
-with md.photon(MODEL, device="cpu") as speech:
+device = resolve_device("auto")   # the default user path, whatever this machine's best kernel is
+print(f"device={device} {device_facts(device)}", file=sys.stderr)
+with md.photon(MODEL, device=device) as speech:
     r = transcribe(M / "tts_truth.mp3", speech)
     got = norm(r["text"])
     assert got == norm(TRUTH), f"WER>0 on own TTS ground truth:\n{' '.join(got)}"
