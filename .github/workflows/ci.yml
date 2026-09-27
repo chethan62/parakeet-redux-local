@@ -35,5 +35,8 @@ jobs:
       - name: gate (baseline transcript, word timings, long-clip reps, speed floor)
         run: .venv/bin/python check.py
 
+      - name: noise degradation (must not collapse at 0 dB SNR)
+        run: .venv/bin/python noise_test.py
+
       - name: venv size
         run: du -sh .venv

@@ -115,9 +115,14 @@ Redux on the CPU), so GPU means the same text, half the speed and ~2 GB of VRAM.
 
 - Clean, close-mic speech: exact transcript on the synthesised ground-truth sentence; word and segment
   timestamps are monotonic and stay inside the audio (`check.py`).
-- Noise is the model's weak point, per Moondream's own card (self-reported, not measured here): background
-  noise average rises from 6.72 to 9.04 WER versus the original weights, and 0 dB FLEURS-German from 14.45 to
-  19.18. Adopt for meetings, podcasts, voice notes; be careful with film audio that has music and effects.
+- Noise is the model's weak point. Moondream's own card (self-reported): background-noise average rises
+  from 6.72 to 9.04 WER versus the original weights, and 0 dB FLEURS-German from 14.45 to 19.18.
+  **Measured here** (`noise_test.py`, white noise mixed into the 10.4 s fixture at a measured SNR, WER
+  against the clean transcript): clean 0.0 %, 10 dB 0.0 %, 5 dB 7.1 %, 0 dB 10.7 % — and every error is a
+  similar-sounding-word substitution (`turnips`→`turnets`, `bruised`→`brewed`, `fattened`→`satin`), with no
+  dropped or invented content. Different fixture and method from the card's numbers, so read them as a
+  direction, not a comparison. Adopt for meetings, podcasts, voice notes; expect this when a film has music
+  and effects over dialogue.
 - Redux is ahead of the original on the 25-language FLEURS average (10.56 vs 11.62) and on long-form
   TED-LIUM (2.51 vs 2.71), and behind it on the seven English sets (6.55 vs 6.26).
 
@@ -151,6 +156,7 @@ falling back to the CPU.
 | `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--device auto\|cpu\|cuda\|mps`, `--timestamps segment\|word`, `--rtf`, `--list-devices` |
 | `check.py` | portable regression gate — fetches its own fixture, checks the recorded baseline transcript, one timing per word, monotonic timings, 12/12 repetitions on the long clip, device-aware speed floor |
 | `.github/workflows/ci.yml` | the same gate on a clean `ubuntu-latest` box with CPU-only torch |
+| `noise_test.py` | noise degradation: mixes white noise at measured SNRs, WER vs the clean transcript, asserts the clean baseline and a 25% ceiling |
 | `bench.sh` | sequential CPU A/B against whisper.cpp on the same clip |
 | `probe_kernels.py` | prints the live ISA / resident form and times forced paths |
 | `gpu_test.py` | device=`cuda` reality check: speed, peak VRAM, fallback warnings |
