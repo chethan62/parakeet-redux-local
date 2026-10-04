@@ -121,6 +121,8 @@ def main() -> None:
     ap.add_argument("--device", default="auto", help="auto|cpu|cuda|mps (or cuda:N); default: auto")
     ap.add_argument("--timestamps", default="none", choices=["none", "segment", "word"])
     ap.add_argument("--rtf", action="store_true")
+    ap.add_argument("-q", "--quiet", action="store_true",
+                    help="print only the transcript text (no '=== file ===' header; status still goes to stderr)")
     ap.add_argument("--list-devices", action="store_true", help="devices, native-kernel status, the auto pick")
     a = ap.parse_args()
 
@@ -149,7 +151,8 @@ def main() -> None:
         print(f"# model load: {time.perf_counter() - t0:.1f}s", file=sys.stderr)
         for path in a.files:
             r = transcribe(path, speech, a.timestamps, a.rtf)
-            print(f"=== {path.name} ===")
+            if not a.quiet:
+                print(f"=== {path.name} ===")
             if a.timestamps == "none":
                 print(r["text"])
                 continue
