@@ -224,7 +224,7 @@ falling back to the CPU.
 
 | file | what it does |
 | --- | --- |
-| `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--device auto\|cpu\|cuda\|mps`, `--timestamps segment\|word`, `--rtf`, `--list-devices` |
+| `transcribe.py` | transcribe any audio/video (ffmpeg → 16 kHz mono), `--device auto\|cpu\|cuda\|mps`, `--timestamps segment\|word`, `--rtf`, `--list-devices`, `-q/--quiet` (transcript only on stdout, status on stderr — for a host that captures the text) |
 | `check.py` | portable regression gate — fetches its own fixture, checks the recorded baseline transcript, one timing per word, monotonic timings, 12/12 repetitions on the long clip, device-aware speed floor |
 | `.github/workflows/ci.yml` | the same gate on a clean `ubuntu-latest` box with CPU-only torch |
 | `noise_test.py` | noise degradation: mixes white noise at measured SNRs, WER vs the clean transcript, asserts the clean baseline and a 25% ceiling |
@@ -242,6 +242,7 @@ uv venv -p 3.12 .venv
 uv pip install --python .venv/bin/python --torch-backend cpu "moondream>=2.4.1" numpy
 
 .venv/bin/python transcribe.py meeting.m4a --timestamps segment
+.venv/bin/python transcribe.py --quiet message.ogg   # stdout = the transcript, nothing else
 .venv/bin/python transcribe.py --list-devices
 .venv/bin/python check.py     # self-fetching gate: baseline transcript, word timings, 12 reps, speed floor
 ```
