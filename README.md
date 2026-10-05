@@ -234,6 +234,7 @@ falling back to the CPU.
 | `bench_ggml.sh` | cross-checks: the ggml `parakeet-cli` (already on this box) on ggml-org's GGUF, CPU vs Vulkan, plus the CUDA-hidden A/B — waits for a quiet machine before timing |
 | `bench_quants.sh` | the size-vs-kernel experiment: the same ggml model at q8_0/q4_k/q4_0 on the same clip through the same binary (answer: halving the file buys 29 %, so the 2.2× gap is the kernel) |
 | `bench_sherpa.py` | reproduces a production sherpa-onnx int8 configuration, on the 125 s fixture (7.46× chunked) **and on a real 183.6 s film excerpt (7.45×)** — takes any 16 kHz mono wav as its first argument |
+| `transcribe_sherpa.py` | **the permitted runtime**: the same job on sherpa-onnx (Apache-2.0) with the k2-fsa int8 ONNX Parakeet — `-q/--quiet` for a host, `--self-test` for the model layout; one pass, no chunking (a clip past 120 s fails with the reason rather than truncating) |
 | `upstream-issue.md` | drafted (not posted) issue for the walkthrough repo this started from: its app omits `device=`, so any NVIDIA machine silently takes the slower CUDA path |
 
 ```sh
@@ -267,6 +268,13 @@ agreement that also forbids reverse engineering, deobfuscation or extracting the
 This repository therefore reports **observable behaviour only** — timings, public API return values and
 runtime warnings — and deliberately contains no engine internals, no kernel binaries and no source excerpts
 from that package.
+
+**If you need a runtime you can actually use, use `transcribe_sherpa.py`.** It does the same job on
+[sherpa-onnx](https://github.com/k2-fsa/sherpa-onnx) (Apache-2.0) with the k2-fsa int8 ONNX conversion of
+the same Parakeet model — the configuration `bench_sherpa.py` already measures here, at **7.45×** against
+Redux's 9.25–9.92× on real film audio. Roughly 25 % slower; that difference is the price of a licence that
+grants you something. Note that Redux's own ternary weights are **not** reusable outside its runtime, so the
+permitted path swaps the model conversion too, not just the engine.
 
 Nothing here is vendored: models and wheels are downloaded at install time, so there is no NOTICE/third-party
 file to ship.
