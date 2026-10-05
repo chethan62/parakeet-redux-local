@@ -1,22 +1,28 @@
 #!/usr/bin/env python3
 """Transcribe one clip with Parakeet via sherpa-onnx — the *permitted* runtime.
 
-Why this exists: `transcribe.py` runs Moondream's Parakeet Redux through `kestrel_kernels`,
+Why this exists: this repo used to run Moondream's Parakeet Redux through `kestrel_kernels`,
 whose licence grants nothing without a separate written agreement with M87 Labs ("if you have
 not entered into such an Agreement, you have no license to use this software") and whose §2
 forbids reverse engineering and unpacking the packed kernel collection. The *weights* were
-CC-BY-4.0 and fine; the runtime was the problem. This script keeps the model family and swaps
-the runtime for sherpa-onnx (Apache-2.0) using the k2-fsa int8 ONNX conversion.
+CC-BY-4.0 and fine; the runtime was the problem, and it is deleted from this repo — scripts,
+venv, CI steps and all. This script keeps the model family and swaps the runtime for
+sherpa-onnx (Apache-2.0) using the k2-fsa int8 ONNX conversion.
 
 Measured on this box (see ~/projects/parakeet-redux/bench_sherpa.py and the vlc-ai-subs
 research notes): sherpa int8 reads ~7.45x realtime where Redux read 9.25-9.92x — roughly 25%
 slower, which is the price of a licence that can actually be used.
 
-Usage (the same shape as transcribe.py, so it can replace it in a command provider):
+Usage (the transcript is stdout, which is what a command provider reads):
     <venv-with-sherpa>/bin/python transcribe_sherpa.py -q clip.wav
+    <venv-with-sherpa>/bin/python transcribe_sherpa.py -q clip.wav -o transcript.txt
     <venv-with-sherpa>/bin/python transcribe_sherpa.py --self-test
 
-The transcript goes to stdout: that is what Hermes' stt command provider reads.
+The transcript goes to stdout. `-o` additionally writes it to a file, ALWAYS — including when it
+is empty. A host reading that file cannot otherwise distinguish "the command ran and heard
+nothing" from "the command never ran", and Hermes' command STT provider treats empty output as
+failure ("non-empty output file > non-empty stdout > RuntimeError"), so a quiet recording would
+otherwise look like a broken provider.
 """
 import argparse
 import os
@@ -107,6 +113,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description="Parakeet (sherpa-onnx) transcriber")
     ap.add_argument("input", nargs="?", help="16 kHz mono wav")
     ap.add_argument("-q", "--quiet", action="store_true", help="print only the transcript")
+    ap.add_argument("-o", "--output", help="also write the transcript here (empty file if silent)")
     ap.add_argument("-m", "--model", choices=sorted(VARIANTS), default="v3")
     ap.add_argument("-t", "--threads", type=int, default=max(1, (os.cpu_count() or 4) // 2))
     ap.add_argument("--self-test", action="store_true")
@@ -124,6 +131,10 @@ def main() -> int:
                          f"({MAX_SECONDS:.0f}s) — see the note in this file.")
     t0 = time.time()
     text = transcribe(samples, d, a.threads)
+    if a.output:
+        # Writes the file even when the transcript is empty — see the module docstring.
+        with open(a.output, "w", encoding="utf-8") as fh:
+            fh.write(text + "\n")
     if not a.quiet:
         print(f"# parakeet-{a.model} (sherpa-onnx int8) {dur:.2f}s audio, "
               f"{time.time() - t0:.2f}s, {a.threads} threads", file=sys.stderr)

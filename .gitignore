@@ -5,3 +5,4 @@ __pycache__/
 
 # stderr captures from probing kernel paths (regenerable)
 *_warn.txt
+.venv-sherpa/

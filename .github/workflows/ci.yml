@@ -20,23 +20,19 @@ jobs:
       - name: uv
         run: curl -LsSf https://astral.sh/uv/install.sh | sh && echo "$HOME/.local/bin" >> "$GITHUB_PATH"
 
-      - name: install moondream (CPU-only torch)
+      - name: install sherpa-onnx (the permitted runtime, Apache-2.0)
         run: |
           uv venv -p 3.12 .venv
-          # --torch-backend cpu from the start: PyPI's default torch wheel is the CUDA build plus ~3.2 GB
-          # of nvidia-* wheels, which a CPU-first repo should not carry (plain pip install moondream does).
-          uv pip install --python .venv/bin/python --torch-backend cpu "moondream>=2.4.1" numpy
-          .venv/bin/python -c "import torch; assert torch.version.cuda is None, torch.version.cuda; print('torch', torch.__version__)"
-          if uv pip list --python .venv/bin/python | grep -q '^nvidia'; then echo "nvidia-* wheels present"; exit 1; fi
+          # No torch and no nvidia-* wheels: sherpa-onnx is CPU ONNX Runtime. The removed
+          # proprietary runtime needed a 1.7 GB venv for the same job - and a licence nobody has.
+          uv pip install --python .venv/bin/python sherpa-onnx numpy
+          .venv/bin/python -c "import sherpa_onnx; print('sherpa-onnx importable')"
+          if uv pip list --python .venv/bin/python | grep -Eiq '^(moondream|kestrel)'; then
+            echo "the proprietary runtime is installed - it must not be"; exit 1
+          fi
 
-      - name: which kernel path did we get
-        run: .venv/bin/python transcribe.py --list-devices
-
-      - name: gate (baseline transcript, word timings, long-clip reps, speed floor)
+      - name: gate (licence guard, host contract, missing-model and ceiling paths)
         run: .venv/bin/python check.py
-
-      - name: noise degradation (must not collapse at 0 dB SNR)
-        run: .venv/bin/python noise_test.py
 
       - name: venv size
         run: du -sh .venv

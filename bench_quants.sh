@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: MIT
-# Does Photon's ~3x lead come from the ternary kernel, or just from 178 MB of weights?
+# Where does the removed runtime's ~3x lead come from - its ternary kernel, or just 178 MB of weights?
 # Runs the same clip through the same ggml binary at three quantisation sizes:
 #   q8_0 669 MB (measured: 4.46x)   q4_k 416 MB   q4_0 356 MB   — vs Photon ternary 178 MB = 13.98x
 # If the small quants stay near 4.5x, the speed is the engine's avx2 kernel, not the weight size.

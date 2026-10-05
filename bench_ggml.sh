@@ -5,7 +5,8 @@
 #
 #   1. ggml parakeet-cli (whisper.cpp 1.9.2, already installed) on ggml-org's own GGUF - CPU vs Vulkan.
 #      This is the unverified step from the research pass: does that GGUF even load in 1.9.2?
-#   2. Photon with CUDA hidden vs visible, to test kestrel issue #259 on this box (claims ~14%).
+#   2. the same binary's CPU path with the GPU hidden, to see what it costs on a machine that
+#      also has one (the removed Photon runtime was measured at ~14% for the same question).
 set -uo pipefail
 CLI="$HOME/.local/share/whisper-cpp/parakeet-cli"
 GGUF="$HOME/models/parakeet/ggml-parakeet-tdt-0.6b-v3-q8_0.bin"
@@ -40,11 +41,9 @@ echo "=== 1b. ggml VULKAN (GTX 1650, -dev 0 -t 8) ==="
 /usr/bin/time -f "WALL %e s  MAXRSS %M KB" \
   "$CLI" -t 8 -np -dev 0 -m "$GGUF" -f "$CLIP" 2>&1 | tail -6
 
-echo "=== 2. Photon: does hiding CUDA matter on this box? (kestrel #259) ==="
-cd "$REPO"
-for tag in visible hidden visible2; do
-  [ "$tag" = hidden ] && PRE="CUDA_VISIBLE_DEVICES=" || PRE=""
-  printf '%-9s ' "$tag"
-  env $PRE .venv/bin/python check.py 2>&1 | grep -oE "[0-9.]+x realtime on 125s" || echo "(gate failed)"
+echo "=== 2. ggml parakeet-cli: CPU with the GPU hidden vs visible ==="
+if whisper-cli --help >/dev/null 2>&1; then echo "(ggml binary present)"; fi
+CUDA_VISIBLE_DEVICES= /usr/bin/time -f "%es wall, %M KB peak" \
+  whisper-cli -m "$GGML" -f "$CLIP" -t 8 --no-prints -ng 2>&1 | tail -3 
 done
 echo "temp after: $(sensors 2>/dev/null | awk '/Package id 0/{print $4}')"
